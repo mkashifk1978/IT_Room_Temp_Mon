@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MN Datalogger Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      padding: 20px;
+      margin: 0;
+      background-color: #f7f7f7;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.5rem; /* Increased font size */
+      margin-bottom: 20px;
+      color: #333; /* Darker color for better visibility */
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 2rem; /* Increased font size */
+      margin-top: 30px;
+      color: #d62030; /* Stylish color */
+    }
+
+    .temperature-container {
+      display: flex;
+      flex-wrap: wrap; /* Allow wrapping to the next line */
+      justify-content: center; /* Center the boxes */
+      margin-bottom: 20px; /* Space below the boxes */
+    }
+
+    .temperature-box {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: calc(50% - 20px); /* Two boxes in a row */
+      margin: 10px; /* Margin between boxes */
+      padding: 20px;
+      background-color: #fff;
+      border: 2px solid #d62030; /* Stylish border */
+      border-radius: 8px; /* Rounded corners */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Shadow effect */
+      text-align: center;
+      font-size: 1.5rem; /* Increased font size */
+    }
+
+    #last-update {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 1rem; /* Increased font size */
+      color: gray;
+    }
+
+    .graph-container {
+      display: flex;
+      justify-content: center; /* Center the graph */
+      margin: 20px 0; /* Margin for spacing */
+    }
+
+    iframe {
+      width: 100%; /* Full width */
+      max-width: 500px; /* Maximum width for the graph */
+      height: 300px; /* Height for better visibility */
+      border: 1px solid #d62030; /* Thinner border */
+      border-radius: 8px; /* Rounded corners */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Shadow effect for the graph */
+    }
+
+    @media (max-width: 768px) {
+      .temperature-box {
+        width: calc(100% - 20px); /* One box per row on smaller screens */
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>📡 MN Server Room Temperatures</h1>
+  <div class="temperature-container">
+    <div class="temperature-box" id="temp1">Loading...</div>
+    <div class="temperature-box" id="temp2">Loading...</div>
+    <div class="temperature-box" id="temp3">Loading...</div>
+    <div class="temperature-box" id="temp4">Loading...</div>
+  </div>
+  <p id="last-update">Loading update time...</p>
+
+  <script>
+    const CHANNEL_ID = "3002784"; // Ensure this is correct
+    const READ_API_KEY = "6OT1K4HHIX9002SL"; // Ensure this is correct
+
+    // Variables to store the last known values
+    let lastValues = {
+      field1: "Loading...",
+      field2: "Loading...",
+      field3: "Loading...",
+      field4: "Loading..."
+    };
+
+    async function fetchData() {
+      const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API_KEY}&results=1`;
+
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+        console.log("API Response:", json); // Log the API response for debugging
+
+        const feed = json.feeds[0];
+        if (!feed) {
+          throw new Error("No data received");
+        }
+
+        const fieldNames = {
+          field1: "Server Room Temp1",
+          field2: "Server Room Temp2",
+          field3: "Server Room Temp3",
+          field4: "Battery Room Temp",
+        };
+
+        // Update the displayed values and store the last known values
+        for (let i = 1; i <= 4; i++) {
+          const key = `field${i}`;
+          const name = fieldNames[key] || key;
+          const rawValue = feed[key];
+          const value = rawValue ? (parseFloat(rawValue) / 10).toFixed(1) + " °C" : "-";
+          
+          // Update only if new data is received
+          if (rawValue) {
+            lastValues[key] = value; // Store the new value
+          }
+          document.getElementById(`temp${i}`).textContent = `${name}: ${lastValues[key]}`;
+        }
+
+        const now = new Date();
+        document.getElementById("last-update").textContent =
+          "Last updated: " + now.toLocaleString();
+
+      } catch (error) {
+        console.error("Fetch error:", error);
+        // If fetch fails, keep the last known values
+        for (let i = 1; i <= 4; i++) {
+          document.getElementById(`temp${i}`).textContent = `${fieldNames[`field${i}`]}: ${lastValues[`field${i}`]}`;
+        }
+        document.getElementById("last-update").textContent = "";
+      }
+    }
+
+    // Initial fetch to display loading state
+    fetchData();
+    setInterval(fetchData, 15000); // Refresh every 15 seconds
+  </script>
+
+  <h2>Online Temperature Graph</h2>
+  <div class="graph-container">
+    <iframe 
+        src="https://thingspeak.com/channels/3002784/charts/4?bgcolor=%23ffffff&color=%23d62030&dynamic=true&results=60&title=Battery+Room&type=line">
+    </iframe>
+  </div>
+
+</body>
+</html>
